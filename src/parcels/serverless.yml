@@ -1,0 +1,116 @@
+service: online-sp-parcels
+
+plugins:
+  - serverless-package-external
+  - serverless-python-requirements
+
+#resources:
+#  Resources:
+#    ${file(./serverless.swagger-ui.yml)}
+
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux
+  packageExternal:
+    external:
+      - '../common'
+      - '../parcels_module'
+      - '../blueprints_module'
+  account:
+    prod: 234922763796
+    dev: 966640482611
+    secret_name:
+      prod: "parcels-db-connection"
+      dev: "parcels-db-connection"
+    database_name:
+      prod: "parcels"
+      dev: "parcels"
+    secret_name_msp:
+      prod: "msp-db-connection"
+      dev: "msp-db-connection"
+    database_name_blueprints:
+      prod: "blueprint-prod"
+      dev: "msp-beta-legacy"
+#  vpcEndpointIds:
+#      prod: vpce-079e515d98a86a805
+#      dev: vpce-0534bddbcb94a1407
+  bucket:
+      prod: geomni-prod-serverless-deployments
+      dev: geomni-serverless-deployments
+  vpc:
+    dev: 'vpc-0ffd3ef13f175b508'
+    prod: 'vpc-096e483d3db612e4a'
+    security-group:
+      dev: sg-0fb8ad5b74ce47299
+      prod: sg-0b55ec64466e91e89
+    subnet-1:
+      dev: subnet-0dee14a1e202e7099
+      prod: subnet-0cfde876a715b1d6a
+    subnet-2:
+      dev: subnet-0558b41704dc57716
+      prod: subnet-0c7abffd33ccd4511
+    subnet-3:
+      dev: subnet-0877743e57833ca2b
+      prod: subnet-06259e4ee94390394
+    subnet-4:
+      dev: subnet-0c3406a69271d4049
+      prod: subnet-056c7d6754ffd101a
+
+provider:
+  name: aws
+  runtime: python3.7
+  region: us-west-2
+  stage: ${opt:stage, 'dev'}
+  profile: ${opt:profile, 'default'}
+  deploymentBucket:
+    ${self:custom.bucket.${self:provider.stage}}
+  environment:
+    secret_name: ${self:custom.account.secret_name.${self:provider.stage}}
+    database_name: ${self:custom.account.database_name.${self:provider.stage}}
+    parcel_big_size: 400
+  tags:
+    VA-BusinessUnit: OnlineServices
+    VA-ApplicationId: OS-Sketch_Production
+    VA-EnvironmentType: ${self:provider.stage}
+    VA-ConfigManagementTool: serverless
+    VA-OSType: serverless
+
+  endpointType: PRIVATE
+#  vpcEndpointIds:
+#    - ${self:custom.vpcEndpointIds.${self:provider.stage}}
+  resourcePolicy:
+    - Effect: Allow
+      Principal: '*'
+      Action: execute-api:Invoke
+      Resource:
+        - arn:aws:execute-api:${self:provider.region}:${self:custom.account.${self:provider.stage}}:*
+
+    - Effect: Deny
+      Principal: '*'
+      Action: execute-api:Invoke
+      Resource:
+        - arn:aws:execute-api:${self:provider.region}:${self:custom.account.${self:provider.stage}}:*
+      Condition:
+        StringNotEquals:
+          aws:SourceVpc:
+            - ${self:custom.vpc.${self:provider.stage}}
+
+  vpc:
+    securityGroupIds:
+      - ${self:custom.vpc.security-group.${self:provider.stage}}
+    subnetIds:
+      - ${self:custom.vpc.subnet-1.${self:provider.stage}}
+      - ${self:custom.vpc.subnet-2.${self:provider.stage}}
+      - ${self:custom.vpc.subnet-3.${self:provider.stage}}
+      - ${self:custom.vpc.subnet-4.${self:provider.stage}}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "secretsmanager:GetSecretValue"
+      Resource: "*"
+  iamManagedPolicies:
+    - "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+
+functions:
+  parcel:
+    handler: handler.get_parcel
