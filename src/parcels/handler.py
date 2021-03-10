@@ -5,8 +5,7 @@ import psycopg2
 import os
 import requests
 import xml.etree.ElementTree as ET
-from parcels_module import dao
-from blueprints_module import dao as blueprints_dao
+from parcels_module import dao, blueprints_dao
 from shapely.wkt import loads
 from shapely.geometry import mapping
 from common import db, secrets_manager, logging_formatter
@@ -35,36 +34,46 @@ def get_response(body, code):
 
 def get_connection_parcel():
     dbname = os.environ.get("database_name")
-    secret_name_param = os.environ.get("secret_name")
     init_time = get_now()
     global conn_parcels
     if conn_parcels is None or conn_parcels.closed != 0:
         conn_parcels = db.get_connection_with_secret(True, dbname,
-                                                        get_secret_msp_connection(secret_name_param))
+                                                        get_secret_parcel_connection())
         logger.info("New connection created")
     logger.info(f'get parcels connection timing:  {get_now() - init_time}')
     return conn_parcels
 
 
-def get_connection_blueprints(dbname, secret_name_param):
+def get_connection_blueprints():
+    dbname = os.environ.get("database_name_blueprints")
     init_time = get_now()
     global conn_blueprints
     if conn_blueprints is None or conn_blueprints.closed != 0:
         conn_blueprints = db.get_connection_with_secret(True, dbname,
-                                                        get_secret_msp_connection(secret_name_param))
+                                                        get_secret_msp_connection())
         logger.info("New connection created")
     logger.info(f'get blueprints connection timing:  {get_now() - init_time}')
     return conn_blueprints
 
 
-def get_secret_msp_connection(secret_name):
+def get_secret_msp_connection():
     global secret_msp_connection
     init_time = get_now()
     if secret_msp_connection is None:
-        secret_msp_connection = secrets_manager.get_secret(secret_name)
+        secret_msp_connection = secrets_manager.get_secret(os.environ.get("secret_name_msp"))
         logger.info("secret_msp_connection requested")
     logger.info(f'get_secret_msp_connection timing:  {get_now() - init_time}')
     return secret_msp_connection
+
+
+def get_secret_parcel_connection():
+    global secret_parcel_connection
+    init_time = get_now()
+    if secret_parcel_connection is None:
+        secret_parcel_connection = secrets_manager.get_secret(os.environ.get("secret_name"))
+        logger.info("secret_parcel_connection requested")
+    logger.info(f'get_secret_parcel_connection timing:  {get_now() - init_time}')
+    return secret_parcel_connection
 
 
 def get_parcel(event, context):
@@ -117,7 +126,7 @@ def get_parcel(event, context):
 
 def get_geojson_synthetic_parcel(wkt, logger):
     try:
-        parcel_db_response = get_parcel_from_db(wkt);
+        parcel_db_response = get_synthetic_parcel_from_db(wkt);
         if parcel_db_response is not None:
             logger.info("synthetic: %s", parcel_db_response)
             parcels = []
@@ -130,10 +139,10 @@ def get_geojson_synthetic_parcel(wkt, logger):
         return None
 
 
-def get_parcel_from_db(wkt):
+def get_synthetic_parcel_from_db(wkt):
     conn = None
     try:
-        conn = get_connection_blueprints("database_name_blueprints", "secret_name_msp")
+        conn = get_connection_blueprints()
         parcel_wkt = blueprints_dao.get_parcel_from_voronoi(conn, logger, wkt)
         if parcel_wkt:
             return get_response(json.dumps({'parcel': parcel_wkt}), '200')

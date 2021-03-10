@@ -8,12 +8,12 @@ def get_parcel_test():
     os.environ['database_name'] = "parcels"
 
     os.environ['secret_name_msp'] = "msp-db-connection"
-    os.environ['database_name_blueprints'] = "blueprint-prod"
-    os.environ['parcel_big_size'] = "10000000000"
+    os.environ['database_name_blueprints'] = "msp-beta-legacy"
+    os.environ['parcel_big_size'] = "100"
 
     # event = {'wkt': 'value1', 'buffer': 'value2'}
     # event = {'wkt': 'POINT(-99.744936896409 32.356796683237)', 'buffer': '0.01', 'synthetic': 'true', 'external': 'true'}
-    event = {'wkt': 'POINT(-99.744936896409 32.356796683237)', 'buffer': '0.01', 'synthetic': 'true',
+    event = {'wkt': 'POINT(-99.744936896409 32.356796683237)', 'synthetic': 'true',
              'external': 'true'}
     json = handler.get_parcel(event, None)
     print(json)

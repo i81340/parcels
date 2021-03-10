@@ -15,7 +15,6 @@ custom:
     external:
       - '../common'
       - '../parcels_module'
-      - '../blueprints_module'
   account:
     prod: 234922763796
     dev: 966640482611
